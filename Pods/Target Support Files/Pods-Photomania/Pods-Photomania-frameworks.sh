@@ -87,11 +87,13 @@ if [[ "$CONFIGURATION" == "Debug" ]]; then
   install_framework "Pods-Photomania/Alamofire.framework"
   install_framework "Pods-Photomania/Cent.framework"
   install_framework "Pods-Photomania/Dollar.framework"
+  install_framework "Pods-Photomania/SDWebImage.framework"
   install_framework "Pods-Photomania/SwiftyJSON.framework"
 fi
 if [[ "$CONFIGURATION" == "Release" ]]; then
   install_framework "Pods-Photomania/Alamofire.framework"
   install_framework "Pods-Photomania/Cent.framework"
   install_framework "Pods-Photomania/Dollar.framework"
+  install_framework "Pods-Photomania/SDWebImage.framework"
   install_framework "Pods-Photomania/SwiftyJSON.framework"
 fi

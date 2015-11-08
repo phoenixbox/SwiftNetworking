@@ -6,4 +6,4 @@
 //  Copyright © 2015 Essan Parto. All rights reserved.
 //
 
-#import <Alamofire/Alamofire.h>
+#import "SDWebImage/UIImageView+WebCache.h"

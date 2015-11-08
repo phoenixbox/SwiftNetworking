@@ -11,6 +11,7 @@ import Alamofire
 import SwiftyJSON
 import Dollar
 import Cent
+import SDWebImage
 
 class PhotoBrowserCollectionViewController: UICollectionViewController, UICollectionViewDelegateFlowLayout {
   var photos = NSMutableOrderedSet()
@@ -42,6 +43,9 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
   
   override func collectionView(collectionView: UICollectionView, cellForItemAtIndexPath indexPath: NSIndexPath) -> UICollectionViewCell {
     let cell = collectionView.dequeueReusableCellWithReuseIdentifier(PhotoBrowserCellIdentifier, forIndexPath: indexPath) as! PhotoBrowserCollectionViewCell
+    
+    let imageURL = (photos.objectAtIndex(indexPath.row) as! PhotoInfo).url
+    cell.imageView.sd_setImageWithURL(NSURL(string: imageURL))
     
     return cell
   }
@@ -107,6 +111,8 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
             let count:Int = newPhotos.count
             print("Total *** \(count)")
             self.photos.addObjectsFromArray(newPhotos)
+            
+            self.collectionView?.reloadData()
         }
     }
   
