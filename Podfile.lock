@@ -1,0 +1,20 @@
+PODS:
+  - Alamofire (3.1.2)
+  - Cent (4.0.1):
+    - Dollar (~> 4.0.1)
+  - Dollar (4.0.1)
+  - SwiftyJSON (2.3.1)
+
+DEPENDENCIES:
+  - Alamofire (~> 3.1)
+  - Cent (~> 4.0)
+  - Dollar (~> 4.0)
+  - SwiftyJSON (~> 2.3)
+
+SPEC CHECKSUMS:
+  Alamofire: 7c16ca65f3c7e681fd925fd7f2dec7747ff96855
+  Cent: 74e3f5a7e8543317b0724c272d279e8219cbaedb
+  Dollar: a058e2659e0d3261307c12630dbc2fd8e32f80bf
+  SwiftyJSON: 592b53bee5ef3dd9b3bebc6b9cb7ee35426ae8c3
+
+COCOAPODS: 0.39.0
