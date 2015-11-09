@@ -14,15 +14,15 @@ import Cent
 import SDWebImage
 
 class PhotoBrowserCollectionViewController: UICollectionViewController, UICollectionViewDelegateFlowLayout {
-  var photos = NSMutableOrderedSet()
-  
-  let refreshControl = UIRefreshControl()
+    var photos = NSMutableOrderedSet()
+    let imageCache = NSCache()
+    let refreshControl = UIRefreshControl()
     var populatingPhotos = false
     var currentPage = 1
   
-  let PhotoBrowserCellIdentifier = "PhotoBrowserCell"
-  let PhotoBrowserFooterViewIdentifier = "PhotoBrowserFooterView"
-  
+    let PhotoBrowserCellIdentifier = "PhotoBrowserCell"
+    let PhotoBrowserFooterViewIdentifier = "PhotoBrowserFooterView"
+
   // MARK: Life-cycle
   
   override func viewDidLoad() {
@@ -30,7 +30,7 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
 
     setupView()
     
-    self.populatePhotos()
+    populatePhotos()
   }
   
   override func didReceiveMemoryWarning() {
@@ -50,15 +50,22 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
     
     cell.imageView.image = nil
     cell.request?.cancel()
-
-    // Use the custom responseImage response handler
-    cell.request = Alamofire.request(.GET, imageURL).validate(contentType: ["image/*"]).responseImage() {
-        response in
-        
-        if let img = response.result.value where response.result.error == nil {
-            cell.imageView.image = img
+    
+    if let image = self.imageCache.objectForKey(imageURL) as? UIImage {
+        cell.imageView.image = image
+    } else {
+        cell.request = Alamofire.request(.GET, imageURL).validate(contentType: ["image/*"]).responseImage() {
+            response in
+            
+            if let img = response.result.value where response.result.error == nil {
+                self.imageCache.setObject(img, forKey: response.request!.URLString)
+                cell.imageView.image = img
+            }
         }
     }
+
+    // Use the custom responseImage response handler
+    
 //    sd web image implmentation
 //    
 //    cell.imageView.sd_setImageWithURL(NSURL(string: imageURL))
@@ -153,8 +160,16 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
             self.populatingPhotos = false
         }
     }
-  func handleRefresh() {
     
+  func handleRefresh() {
+    refreshControl.beginRefreshing()
+    
+    self.photos.removeAllObjects()
+    self.currentPage = 1
+    self.collectionView!.reloadData()
+    
+    refreshControl.endRefreshing()
+    populatePhotos()
   }
 }
 
