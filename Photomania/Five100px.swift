@@ -164,7 +164,7 @@ struct Five100px {
   }
 }
 
-class PhotoInfo: NSObject {
+class PhotoInfo: NSObject, ResponseObjectSerializable {
   let id: Int
   let url: String
   
@@ -211,7 +211,7 @@ class PhotoInfo: NSObject {
   }
 }
 
-final class Comment {
+final class Comment: ResponseCollectionSerializable {
     static func collection(response response:NSHTTPURLResponse, representation: AnyObject) -> [Comment] {
         var comments = [Comment]()
         for comment in representation.valueForKeyPath("comments") as! [NSDictionary] {
