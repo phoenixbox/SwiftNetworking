@@ -25,7 +25,36 @@ class PhotoViewerViewController: UIViewController, UIScrollViewDelegate, UIPopov
     super.viewDidLoad()
     
     setupView()
+    
+    loadPhoto()
   }
+    //  Make the request for the larger of the photo info - returns the larger photo url
+    //    Need the actual URL for the larger image - so cant just push the existing model
+    func loadPhoto() {
+        Alamofire.request(Five100px.Router.PhotoInfo(self.photoID, .Large)).validate().responseObject {
+            (response: Response<PhotoInfo, NSError>) -> Void in
+            switch response.result {
+            case .Success(let photoInfo):
+                self.photoInfo = photoInfo
+                self.addBottomBar()
+                self.title = photoInfo.name
+                
+                Alamofire.request(.GET, photoInfo.url).validate().responseImage() { response in
+                    if let img = response.result.value {
+                        self.imageView.image = img
+                        self.imageView.frame = self.centerFrameFromImage(img)
+                        
+                        self.spinner.stopAnimating()
+                        
+                        self.centerScrollViewContents()
+                    }
+                }
+                
+            case .Failure(let error):
+                print(error.localizedDescription)
+            }
+        }
+    }
   
   func setupView() {
     spinner.center = CGPoint(x: view.center.x, y: view.center.y - view.bounds.origin.y / 2.0)
@@ -64,7 +93,7 @@ class PhotoViewerViewController: UIViewController, UIScrollViewDelegate, UIPopov
   
   // MARK: Bottom Bar
   
-  func addButtomBar() {
+  func addBottomBar() {
     var items = [UIBarButtonItem]()
     
     let flexibleSpace = UIBarButtonItem(barButtonSystemItem: .FlexibleSpace, target: nil, action: nil)
@@ -144,6 +173,39 @@ class PhotoViewerViewController: UIViewController, UIScrollViewDelegate, UIPopov
   // MARK: Download Photo
   
   func downloadPhoto() {
+    // autocomplete says that the completionHandler: types is a param - is this a shorthand closure syntax?
+    // Difference between the responseObject and responseImage syntax details
+    Alamofire.request(Five100px.Router.PhotoInfo(photoID, .XLarge)).validate().responseObject() { (response: Response<PhotoInfo, NSError>) -> Void in
+        
+        if let error = response.result.error {
+            print(error.localizedDescription)
+        } else {
+            switch response.result {
+            case.Success(let photoInfo):
+                let imageURL = photoInfo.url
+                let destination = Alamofire.Request.suggestedDownloadDestination(directory: .DocumentDirectory, domain: .UserDomainMask)
+                
+                let progressIndicatorView = UIProgressView(frame: CGRect(x:0.0, y:80.0, width: self.view.bounds.width, height: 10.0))
+                progressIndicatorView.tintColor = UIColor.blueColor()
+                self.view.addSubview(progressIndicatorView)
+                
+                Alamofire.download(.GET, imageURL, destination: destination).progress {
+                    bytesRead, totalBytesRead, totalBytesExpectedToRead in
+                    
+                    dispatch_async(dispatch_get_main_queue()) {
+                        progressIndicatorView.setProgress(Float(totalBytesRead) / Float(totalBytesExpectedToRead), animated: true)
+                        
+                        if totalBytesRead == totalBytesExpectedToRead {
+                            progressIndicatorView.removeFromSuperview()
+                        }
+                    }
+                }
+            case.Failure(let error):
+                print(error.localizedDescription)
+            }
+            
+        }
+    }
   }
 
   func showActions() {

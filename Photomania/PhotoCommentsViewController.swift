@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import Alamofire
 
 class PhotoCommentsViewController: UITableViewController {
   var photoID: Int = 0
@@ -22,6 +23,25 @@ class PhotoCommentsViewController: UITableViewController {
     
     title = "Comments"
     navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Done", style: .Done, target: self, action: "dismiss")
+    
+    // Params of photoId and comments page offset
+    // Make response generic of array type Comment
+    Alamofire.request(Five100px.Router.Comments(photoID, 1)).validate().responseCollection() {
+        (response: Response<[Comment], NSError>) in
+        
+        if let error = response.result.error {
+            print(error.localizedDescription)
+        } else {
+            switch response.result {
+            case .Success(let comments):
+                self.comments = comments
+                self.tableView.reloadData()
+                
+            case .Failure(let error):
+                print(error.localizedDescription)
+            }
+        }
+    }
   }
   
   func dismiss() {
@@ -36,6 +56,20 @@ class PhotoCommentsViewController: UITableViewController {
   
   override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
     let cell = tableView.dequeueReusableCellWithIdentifier("CommentCell", forIndexPath: indexPath) as! PhotoCommentTableViewCell
+    cell.userFullnameLabel.text = self.comments?[indexPath.row].userFullname
+    cell.commentLabel.text = self.comments?[indexPath.row].commentBody
+    
+    // Null out the existing image
+    cell.userImageView.image = nil
+    if let pictureURL = self.comments?[indexPath.row].userPictureURL {
+        Alamofire.request(.GET, pictureURL).validate().responseImage() {
+            response in
+            if let img = response.result.value {
+                cell.imageView!.image = img
+            }
+        }
+    }
+    
     
     return cell
   }

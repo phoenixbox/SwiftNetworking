@@ -98,6 +98,8 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
     collectionView!.addSubview(refreshControl)
   }
     
+    // prepare for Segue is the point at which model attrs can be sent to the destination view controller
+    // use as the glue for ViewModel initialization
   override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
     if segue.identifier == "ShowPhoto" {
       (segue.destinationViewController as! PhotoViewerViewController).photoID = sender!.integerValue
