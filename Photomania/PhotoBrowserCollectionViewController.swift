@@ -17,6 +17,8 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
   var photos = NSMutableOrderedSet()
   
   let refreshControl = UIRefreshControl()
+    var populatingPhotos = false
+    var currentPage = 1
   
   let PhotoBrowserCellIdentifier = "PhotoBrowserCell"
   let PhotoBrowserFooterViewIdentifier = "PhotoBrowserFooterView"
@@ -25,10 +27,10 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
   
   override func viewDidLoad() {
     super.viewDidLoad()
-    
-    self.getPhotos()
-    
+
     setupView()
+    
+    self.populatePhotos()
   }
   
   override func didReceiveMemoryWarning() {
@@ -45,7 +47,21 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
     let cell = collectionView.dequeueReusableCellWithReuseIdentifier(PhotoBrowserCellIdentifier, forIndexPath: indexPath) as! PhotoBrowserCollectionViewCell
     
     let imageURL = (photos.objectAtIndex(indexPath.row) as! PhotoInfo).url
-    cell.imageView.sd_setImageWithURL(NSURL(string: imageURL))
+    
+    cell.imageView.image = nil
+    cell.request?.cancel()
+
+    // Use the custom responseImage response handler
+    cell.request = Alamofire.request(.GET, imageURL).validate(contentType: ["image/*"]).responseImage() {
+        response in
+        
+        if let img = response.result.value where response.result.error == nil {
+            cell.imageView.image = img
+        }
+    }
+//    sd web image implmentation
+//    
+//    cell.imageView.sd_setImageWithURL(NSURL(string: imageURL))
     
     return cell
   }
@@ -88,34 +104,53 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
       (segue.destinationViewController as! PhotoViewerViewController).hidesBottomBarWhenPushed = true
     }
   }
-    
-    func getPhotos() {
-        let PHOTOS_ENDPOINT = "https://api.500px.com/v1/photos"
-        let CONSUMER_KEY = "aPJSyqsiWTZVEOevcbh0tSNgRlgdC8Ur07P9XG0y"
-        let CONSUMER_SECRET = "EGrrBzOGTYu4LV0V9JmWlDl0MCPpBBYx4KRMF48V"
-        let params:Dictionary = ["consumer_key": CONSUMER_KEY, "consumer_secret":CONSUMER_SECRET]
-        
-        Alamofire.request(.GET, PHOTOS_ENDPOINT, parameters: params).responseJSON {
-            response in
-
-//            Need to stick to the types your dealing with - return JSON here
-            let json = JSON(data: response.data!)
-            let filtered = $.chain(json["photos"].array!)
-                                .filter { $0["nsfw"].bool! == false }
-                                .map { return ["id": $1["id"].int!, "image_url": $1["image_url"].string!]}
-                                .value
-            // Operate on the JSON
-            let newPhotos = filtered.map { (blob: JSON) -> PhotoInfo in
-                return PhotoInfo(id: blob["id"].int!, url: blob["image_url"].string!)
-            }
-            let count:Int = newPhotos.count
-            print("Total *** \(count)")
-            self.photos.addObjectsFromArray(newPhotos)
-            
-            self.collectionView?.reloadData()
+    // 1
+    override func scrollViewDidScroll(scrollView: UIScrollView) {
+        if scrollView.contentOffset.y + view.frame.size.height > scrollView.contentSize.height * 0.8 {
+            populatePhotos()
         }
     }
-  
+    
+    func populatePhotos() {
+        // 1.Control duplicate requests
+        if (populatingPhotos) {
+            return
+        }
+        populatingPhotos = true
+        
+        // 2.Perform request
+        Alamofire.request(Five100px.Router.PopularPhotos(self.currentPage)).responseJSON {
+            response in
+            if (response.result.error == nil) {
+                let json = JSON(data: response.data!)
+                //  Operate on JSON - then return JSON
+                let filtered = $.chain(json["photos"].array!)
+                    .filter { $0["nsfw"].bool! == false }
+                    .map { return ["id": $1["id"].int!, "image_url": $1["image_url"].string!]}
+                    .value
+                // Operate on the JSON
+                let newPhotos = filtered.map { (blob: JSON) -> PhotoInfo in
+                    return PhotoInfo(id: blob["id"].int!, url: blob["image_url"].string!)
+                }
+                let currentLastPhotoIndex = self.photos.count
+                
+                self.photos.addObjectsFromArray(newPhotos)
+                // Use of ..< half-closed range operator - a up to be not including b
+                // Same as closed range -1
+                let indexPaths = (currentLastPhotoIndex ..< self.photos.count).map { NSIndexPath(forItem: $0, inSection: 0) }
+                
+                dispatch_async(dispatch_get_main_queue(), {
+                    self.collectionView!.insertItemsAtIndexPaths(indexPaths)
+                })
+                
+                self.currentPage++
+            } else {
+                print("Request Error \(response.result.error?.localizedDescription)")
+            }
+
+            self.populatingPhotos = false
+        }
+    }
   func handleRefresh() {
     
   }
@@ -123,6 +158,7 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
 
 class PhotoBrowserCollectionViewCell: UICollectionViewCell {
   let imageView = UIImageView()
+  var request: Alamofire.Request?
   
   required init(coder aDecoder: NSCoder) {
     super.init(coder: aDecoder)!
