@@ -14,14 +14,17 @@ import Cent
 import SDWebImage
 
 class PhotoBrowserCollectionViewController: UICollectionViewController, UICollectionViewDelegateFlowLayout {
-    var photos = NSMutableOrderedSet()
-    let imageCache = NSCache()
+//    var photos = NSMutableOrderedSet()
+//    let imageCache = NSCache()
     let refreshControl = UIRefreshControl()
     var populatingPhotos = false
     var currentPage = 1
   
     let PhotoBrowserCellIdentifier = "PhotoBrowserCell"
     let PhotoBrowserFooterViewIdentifier = "PhotoBrowserFooterView"
+    
+    // ****
+    var viewModel:PhotoBrowserViewModel = PhotoBrowserViewModel()
 
   // MARK: Life-cycle
   
@@ -29,9 +32,17 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
     super.viewDidLoad()
 
     setupView()
-    
+    bindViewModel()
     populatePhotos()
   }
+    
+    func bindViewModel() {
+        RACObserve(viewModel, keyPath: "photos").subscribeNext {
+            (d:AnyObject!) -> () in
+            print("*** Photos changed!! ***")
+            self.collectionView!.reloadData()
+        }
+    }
   
   override func didReceiveMemoryWarning() {
     super.didReceiveMemoryWarning()
@@ -40,25 +51,25 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
   // MARK: CollectionView
   
   override func collectionView(collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-    return photos.count
+    return viewModel.photos.count
   }
   
   override func collectionView(collectionView: UICollectionView, cellForItemAtIndexPath indexPath: NSIndexPath) -> UICollectionViewCell {
     let cell = collectionView.dequeueReusableCellWithReuseIdentifier(PhotoBrowserCellIdentifier, forIndexPath: indexPath) as! PhotoBrowserCollectionViewCell
     
-    let imageURL = (photos.objectAtIndex(indexPath.row) as! PhotoInfo).url
+    let imageURL = (self.viewModel.photos.objectAtIndex(indexPath.row) as! PhotoInfo).url
     
     cell.imageView.image = nil
     cell.request?.cancel()
     
-    if let image = self.imageCache.objectForKey(imageURL) as? UIImage {
+    if let image = self.viewModel.imageCache.objectForKey(imageURL) as? UIImage {
         cell.imageView.image = image
     } else {
         cell.request = Alamofire.request(.GET, imageURL).validate(contentType: ["image/*"]).responseImage() {
             response in
             
             if let img = response.result.value where response.result.error == nil {
-                self.imageCache.setObject(img, forKey: response.request!.URLString)
+                self.viewModel.imageCache.setObject(img, forKey: response.request!.URLString)
                 cell.imageView.image = img
             }
         }
@@ -78,7 +89,7 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
   }
   
   override func collectionView(collectionView: UICollectionView, didSelectItemAtIndexPath indexPath: NSIndexPath) {
-    performSegueWithIdentifier("ShowPhoto", sender: (self.photos.objectAtIndex(indexPath.item) as! PhotoInfo).id)
+    performSegueWithIdentifier("ShowPhoto", sender: (self.viewModel.photos.objectAtIndex(indexPath.item) as! PhotoInfo).id)
   }
   
   // MARK: Helper
@@ -122,50 +133,27 @@ class PhotoBrowserCollectionViewController: UICollectionViewController, UICollec
     
     func populatePhotos() {
         // 1.Control duplicate requests
-        if (populatingPhotos) {
+        if (viewModel.populatingPhotos) {
             return
         }
-        populatingPhotos = true
+        viewModel.populatingPhotos = true
+        // Trigger the search
+        viewModel.executeSearch?.execute(nil).subscribeNext {
+            (d:AnyObject!) -> () in
+            let count = self.viewModel.photos.count
+            print("*** Search Execution Finished!! photoCount: \(count) ***")
+            self.collectionView!.reloadData()
+        }
         
         // 2.Perform request
-        Alamofire.request(Five100px.Router.PopularPhotos(self.currentPage)).responseJSON {
-            response in
-            if (response.result.error == nil) {
-                let json = JSON(data: response.data!)
-                //  Operate on JSON - then return JSON
-                let filtered = $.chain(json["photos"].array!)
-                    .filter { $0["nsfw"].bool! == false }
-                    .map { return ["id": $1["id"].int!, "image_url": $1["image_url"].string!]}
-                    .value
-                // Operate on the JSON
-                let newPhotos = filtered.map { (blob: JSON) -> PhotoInfo in
-                    return PhotoInfo(id: blob["id"].int!, url: blob["image_url"].string!)
-                }
-                let currentLastPhotoIndex = self.photos.count
-                
-                self.photos.addObjectsFromArray(newPhotos)
-                // Use of ..< half-closed range operator - a up to be not including b
-                // Same as closed range -1
-                let indexPaths = (currentLastPhotoIndex ..< self.photos.count).map { NSIndexPath(forItem: $0, inSection: 0) }
-                
-                dispatch_async(dispatch_get_main_queue(), {
-                    self.collectionView!.insertItemsAtIndexPaths(indexPaths)
-                })
-                
-                self.currentPage++
-            } else {
-                print("Request Error \(response.result.error?.localizedDescription)")
-            }
-
-            self.populatingPhotos = false
-        }
+        // PhotoBrowserViewModel - PhotoBrowserImpl would handle the request
     }
     
   func handleRefresh() {
     refreshControl.beginRefreshing()
     
-    self.photos.removeAllObjects()
-    self.currentPage = 1
+    self.viewModel.photos.removeAllObjects()
+    self.viewModel.currentPage = 1
     self.collectionView!.reloadData()
     
     refreshControl.endRefreshing()

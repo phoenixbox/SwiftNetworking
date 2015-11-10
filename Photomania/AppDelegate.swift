@@ -27,6 +27,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     UIButton.appearance().tintColor = UIColor.whiteColor()
     
+//    let navController = self.window?.rootViewController as! UINavigationController
+//    let controller = navController.childViewControllers.first as! PhotoBrowserCollectionViewController
+//    let viewModel = PhotoBrowserViewModel()
+//    controller.viewModel = viewModel
+    
     return true
   }
 }

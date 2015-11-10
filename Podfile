@@ -9,6 +9,7 @@ pod 'SwiftyJSON', '~> 2.3'
 pod 'Dollar', '~> 4.0'
 pod 'Cent', '~> 4.0'
 pod 'SDWebImage', '~> 3.7'
+pod 'ReactiveCocoa', '4.0.4-alpha-1'
 end
 
 target 'PhotomaniaTests' do
